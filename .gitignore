@@ -1,0 +1,8 @@
+*.o
+*.obj
+*.ko
+*.elf
+*.lo
+*.la
+*.al
+*.bin
