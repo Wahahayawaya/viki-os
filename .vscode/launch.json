@@ -1,0 +1,43 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "kernel",
+            "type": "cppdbg",
+            "request": "launch", 
+            "program": "./kernel.bin",//vmlinux路径
+            "args": [],//启动参数,如果需要记录日志可以自己增加参数。因为gdbsever已经有了参数，这里可以不用设置
+            "stopAtEntry": true,//会自动停在main,不需要则设置为false
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb", //运行模式
+            "logging": {
+                "moduleLoad": false,
+                "engineLogging": false,
+                "trace": false
+            },
+            "setupCommands": [ //命令
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "set architecture i386",
+                    "text": "set architecture i386",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "设置入口函数",
+                    "text": "break _start",  // 在自定义入口函数处设置断点
+                    "ignoreFailures": false
+                }
+            ],
+            "miDebuggerServerAddress":"localhost:1234"//远程端口
+        }
+    ]
+}

@@ -6,14 +6,17 @@ AS = gcc
 LD = ld
 
 # 编译选项
-CFLAGS = -m32 -ffreestanding -fno-stack-protector -nostdlib -Wall -Wextra
-ASFLAGS = -m32
+CFLAGS = -m32 -ffreestanding -fno-stack-protector -nostdlib -Wall -Wextra -I./include -g
+ASFLAGS = -m32 -g
 LDFLAGS = -m elf_i386 -T linker.ld
 
 # 目标文件
 BOOT_OBJ = boot/boot.o
-KERNEL_OBJ = kernel/kernel.o
 KERNEL_BIN = kernel.bin
+
+
+KERNEL_SRC := $(wildcard kernel/*.c)
+KERNEL_OBJ := $(patsubst %.c,%.o,$(KERNEL_SRC))
 
 # 所有目标文件
 OBJS = $(BOOT_OBJ) $(KERNEL_OBJ)
@@ -22,13 +25,12 @@ OBJS = $(BOOT_OBJ) $(KERNEL_OBJ)
 all: iso
 
 # 编译引导汇编代码
-$(BOOT_OBJ): boot/boot.S include/multiboot2.h
+$(BOOT_OBJ): boot/boot.S
 	@echo "编译引导代码: $<"
-	$(AS) $(ASFLAGS) -c $< -o $@
+	$(AS) $(ASFLAGS) -I./include -c $< -o $@
 
-# 编译内核C代码
-$(KERNEL_OBJ): kernel/kernel.c include/multiboot2.h
-	@echo "编译内核代码: $<"
+kernel/%.o: kernel/%.c
+	@echo "编译内核模块: $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # 链接内核
@@ -47,6 +49,10 @@ iso: $(KERNEL_BIN)
 run_qemu: iso
 	@echo "从ISO镜像在QEMU中启动..."
 	qemu-system-i386 -cdrom viki-os.iso
+
+run_debug_qemu: iso
+	@echo "从ISO镜像在QEMU中调试..."
+	qemu-system-i386 -S -s -cdrom viki-os.iso -m 256
 
 # 清理构建文件
 clean:
