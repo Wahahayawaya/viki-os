@@ -11,27 +11,36 @@ ASFLAGS = -m32 -g
 LDFLAGS = -m elf_i386 -T linker.ld
 
 # 目标文件
-BOOT_OBJ = boot/boot.o
+BOOT_OBJ = boot/boot.o boot/gdt_flush.o
 KERNEL_BIN = kernel.bin
-
 
 KERNEL_SRC := $(wildcard kernel/*.c)
 KERNEL_OBJ := $(patsubst %.c,%.o,$(KERNEL_SRC))
+KERNEL_ASM := $(wildcard kernel/*.S)
+KERNEL_ASM_OBJ := $(patsubst %.S,%.o,$(KERNEL_ASM))
 
 # 所有目标文件
-OBJS = $(BOOT_OBJ) $(KERNEL_OBJ)
+OBJS = $(BOOT_OBJ) $(KERNEL_OBJ) $(KERNEL_ASM_OBJ)
 
 # 默认目标：构建内核
 all: iso
 
 # 编译引导汇编代码
-$(BOOT_OBJ): boot/boot.S
-	@echo "编译引导代码: $<"
+boot/boot.o: boot/boot.S
+	@echo "Compiling boot code: $<"
+	$(AS) $(ASFLAGS) -I./include -c $< -o $@
+
+boot/gdt_flush.o: boot/gdt_flush.S
+	@echo "Compiling GDT flush: $<"
 	$(AS) $(ASFLAGS) -I./include -c $< -o $@
 
 kernel/%.o: kernel/%.c
 	@echo "编译内核模块: $<"
 	$(CC) $(CFLAGS) -c $< -o $@
+
+kernel/%.o: kernel/%.S
+	@echo "编译内核汇编: $<"
+	$(AS) $(ASFLAGS) -I./include -c $< -o $@
 
 # 链接内核
 $(KERNEL_BIN): $(OBJS) linker.ld

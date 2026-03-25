@@ -1,24 +1,44 @@
 #include "../include/multiboot2.h"
 #include "../include/vga.h"
+#include "../include/gdt.h"
+#include "../include/interrupt.h"
 
-/* 内核入口函数，接收multiboot2魔数和信息指针 */
+/* kernel entry function, receives multiboot2 magic and info pointer */
 void kernel_main(unsigned int magic, unsigned int addr) {
-    /* 检查是否由支持multiboot2的引导加载器启动 */
+    /* check if booted by a multiboot2 compliant bootloader */
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
-        /* 如果魔数不匹配，说明不是通过multiboot2启动的 */
         return;
     }
     
-    /* 初始化VGA文本输出模块 */
+    /* initialize VGA text output module */
     vga_init();
     
-    /* 使用新的printf功能显示消息 */
-    kprintf("Hi, I'm VIKI...\n");
+    kprintf("Hi, I'm VIKI OS...\n");
     kprintf("Magic: 0x%x, Info Addr: 0x%x\n", magic, addr);
-    kprintf("VGA initialized successfully!\n");
     
-    /* 进入无限循环，防止内核退出 */
-    while (1) {
-        __asm__ volatile ("hlt"); /* 停止CPU直到下一个中断 */
-    }
+    /* initialize GDT */
+    gdt_init();
+    kprintf("GDT initialized successfully!\n");
+    
+    /* initialize interrupt system */
+    interrupt_init();
+    
+    /* enable interrupts */
+    __asm__ volatile ("sti");
+    
+    kprintf("Kernel entered protected mode!\n");
+    
+    kprintf("Interrupts enabled!\n");
+    kprintf("System ready.\n");
+    
+    /* 启用中断 */
+    __asm__ volatile ("sti");
+    
+    /* 除零测试 - 触发 #DE 异常 */
+    int a = 1;
+    int b = 0;
+    int c = a / b;
+    
+    kprintf("After div: %d\n", c);
+    while (1) { __asm__ volatile ("hlt"); }
 }
