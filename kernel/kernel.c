@@ -1,7 +1,6 @@
 #include "../include/multiboot2.h"
 #include "../include/vga.h"
 #include "../include/gdt.h"
-#include "../include/interrupt.h"
 
 /* kernel entry function, receives multiboot2 magic and info pointer */
 void kernel_main(unsigned int magic, unsigned int addr) {
@@ -20,25 +19,8 @@ void kernel_main(unsigned int magic, unsigned int addr) {
     gdt_init();
     kprintf("GDT initialized successfully!\n");
     
-    /* initialize interrupt system */
-    interrupt_init();
-    
-    /* enable interrupts */
-    __asm__ volatile ("sti");
-    
     kprintf("Kernel entered protected mode!\n");
-    
-    kprintf("Interrupts enabled!\n");
     kprintf("System ready.\n");
     
-    /* 启用中断 */
-    __asm__ volatile ("sti");
-    
-    /* 除零测试 - 触发 #DE 异常 */
-    int a = 1;
-    int b = 0;
-    int c = a / b;
-    
-    kprintf("After div: %d\n", c);
     while (1) { __asm__ volatile ("hlt"); }
 }

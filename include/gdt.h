@@ -1,0 +1,38 @@
+#ifndef GDT_H
+#define GDT_H
+
+#include <stdint.h>
+
+#define GDT_ENTRIES 6
+#define GDT_SIZE (GDT_ENTRIES * 8)
+
+#define GDT_NULL 0
+#define GDT_KERNEL_CODE 1
+#define GDT_KERNEL_DATA 2
+#define GDT_USER_CODE 3
+#define GDT_USER_DATA 4
+
+#define GDT_KERNEL_CODE_SEL (GDT_KERNEL_CODE << 3)
+#define GDT_KERNEL_DATA_SEL (GDT_KERNEL_DATA << 3)
+#define GDT_USER_CODE_SEL ((GDT_USER_CODE << 3) | 3)
+#define GDT_USER_DATA_SEL ((GDT_USER_DATA << 3) | 3)
+
+struct gdt_entry {
+    uint16_t limit_low;
+    uint16_t base_low;
+    uint8_t base_middle;
+    uint8_t access;
+    uint8_t granularity;
+    uint8_t base_high;
+} __attribute__((packed));
+
+struct gdt_ptr {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
+
+void gdt_init(void);
+
+extern void gdt_flush(uint32_t gdt_ptr);
+
+#endif
