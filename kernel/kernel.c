@@ -2,6 +2,7 @@
 #include "../include/vga.h"
 #include "../include/gdt.h"
 #include "../include/interrupt.h"
+#include "../include/memory.h"
 
 /* kernel entry function, receives multiboot2 magic and info pointer */
 void kernel_main(unsigned int magic, unsigned int addr) {
@@ -23,9 +24,12 @@ void kernel_main(unsigned int magic, unsigned int addr) {
     /* initialize interrupt system and IDT */
     interrupt_init();
     kprintf("Interrupt subsystem initialized successfully!\n");
-    // int a = 12 / 0;
+
+    /* print physical memory layout from multiboot2 info */
+    memory_print_map(addr);
+
     kprintf("Kernel entered protected mode!\n");
     kprintf("System ready.\n");
-    
+
     while (1) { __asm__ volatile ("hlt"); }
 }

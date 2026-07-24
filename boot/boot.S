@@ -42,15 +42,18 @@ multiboot_header:
     .long multiboot_header_end - multiboot_header
     /* 校验和（magic + architecture + length + checksum = 0） */
     .long -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT_ARCHITECTURE_I386 + (multiboot_header_end - multiboot_header))
-    
-    /* 信息请求标签 - 请求基本内存信息 */
+multiboot_request_begin:
+    .align 8
+    /* 信息请求标签 - 同时请求基本内存信息和内存映射，方便后续内存管理
+     * 标签头8字节，后跟两个4字节请求字段，总大小16字节 */
     .short MULTIBOOT_HEADER_TAG_INFORMATION_REQUEST
     .short 0  /* 不是可选的，必须存在 */
-    .long 12  /* 标签大小（包括type、flags、size字段） */
+    .long  multiboot_request_end - multiboot_request_begin  /* 标签大小：type(2) + flags(2) + size(4) + 两个请求(8) */
     .long MULTIBOOT_TAG_TYPE_BASIC_MEMINFO
-    .long 0   /* 结束标记 */
-    
+    .long MULTIBOOT_TAG_TYPE_MMAP
+multiboot_request_end:
     /* 结束标签 */
+    .align 8
     .short MULTIBOOT_HEADER_TAG_END
     .short 0
     .long 8   /* 标签大小 */

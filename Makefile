@@ -3,12 +3,12 @@
 # 编译器设置
 CC = gcc
 AS = gcc
-LD = ld
+LD = gcc
 
 # 编译选项
 CFLAGS = -m32 -ffreestanding -fno-stack-protector -nostdlib -Wall -Wextra -I./include -g
 ASFLAGS = -m32 -g
-LDFLAGS = -m elf_i386 -T linker.ld
+LDFLAGS = -m32 -nostartfiles -nostdlib -T linker.ld
 
 # 目标文件
 BOOT_OBJ = boot/boot.o boot/gdt_flush.o
@@ -42,10 +42,10 @@ kernel/%.o: kernel/%.S
 	@echo "编译内核汇编: $<"
 	$(AS) $(ASFLAGS) -I./include -c $< -o $@
 
-# 链接内核
+# 链接内核，-lgcc用于提供64位整数除法/取模运行时支持
 $(KERNEL_BIN): $(OBJS) linker.ld
 	@echo "链接内核: $@"
-	$(LD) $(LDFLAGS) $(OBJS) -o $@
+	$(LD) $(LDFLAGS) $(OBJS) -o $@ -lgcc
 
 # 构建ISO镜像
 iso: $(KERNEL_BIN)
@@ -57,7 +57,7 @@ iso: $(KERNEL_BIN)
 # 在QEMU中从ISO镜像启动
 run_qemu: iso
 	@echo "从ISO镜像在QEMU中启动..."
-	qemu-system-i386 -cdrom viki-os.iso
+	qemu-system-i386 -cdrom viki-os.iso -m 256
 
 run_debug_qemu: iso
 	@echo "从ISO镜像在QEMU中调试..."
