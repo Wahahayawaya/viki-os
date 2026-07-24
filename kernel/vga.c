@@ -150,44 +150,47 @@ static int strlen(const char *str) {
     return len;
 }
 
-/* 内部辅助函数：将数字转换为字符串 */
+/* 内部辅助函数：将数字转换为字符串
+ * 注：十六进制默认输出小写字母，需要大写时在调用处转换;
+ *     这里用小写是为了让 %x 直接得到标准小写十六进制输出 */
 static void itoa(int value, char *buffer, int base) {
     char *p = buffer;
     char *p1, *p2;
     unsigned int ui;
     int negative = 0;
-    
+
     if (base == 10 && value < 0) {
         negative = 1;
         ui = (unsigned int)(-value);
     } else {
         ui = (unsigned int)value;
     }
-    
+
     /* 处理0的特殊情况 */
     if (ui == 0) {
         *p++ = '0';
         *p = '\0';
         return;
     }
-    
+
     /* 生成数字字符串（逆序） */
     while (ui != 0) {
         int digit = ui % base;
         if (digit < 10) {
             *p++ = (char)('0' + digit);
         } else {
-            *p++ = (char)('A' + digit - 10);
+            /* 默认小写，%X 场景再转大写 */
+            *p++ = (char)('a' + digit - 10);
         }
         ui /= base;
     }
-    
+
     if (negative) {
         *p++ = '-';
     }
-    
+
     *p = '\0';
-    
+
     /* 反转字符串 */
     p1 = buffer;
     p2 = p - 1;
@@ -200,11 +203,13 @@ static void itoa(int value, char *buffer, int base) {
     }
 }
 
-/* 内部辅助函数：输出格式化字符串 */
+/* 内部辅助函数：输出格式化字符串
+ * 支持格式：%%、%c、%s、%d/%i、%u、%x/%X、%p，
+ * 以及带宽度和零填充的格式，如 %08x、%8x、%04d 等 */
 static int vga_vprintf_internal(const char *format, va_list args) {
     int count = 0;
     const char *p = format;
-    
+
     while (*p) {
         if (*p != '%') {
             vga_putc(*p);
@@ -212,10 +217,26 @@ static int vga_vprintf_internal(const char *format, va_list args) {
             p++;
             continue;
         }
-        
-        p++; // 跳过'%'
-        
-        // 处理格式说明符
+
+        p++; /* 跳过'%' */
+
+        /* 解析格式标志与宽度，例如 %08x 中的 '0'(零填充标志) 和 '8'(宽度) */
+        int zero_pad = 0;
+        int width = 0;
+
+        /* 检查零填充标志 '0' */
+        if (*p == '0') {
+            zero_pad = 1;
+            p++;
+        }
+
+        /* 解析十进制宽度字段 */
+        while (*p >= '0' && *p <= '9') {
+            width = width * 10 + (*p - '0');
+            p++;
+        }
+
+        /* 处理格式说明符 */
         switch (*p) {
             case 'c': {
                 char c = (char)va_arg(args, int);
@@ -247,6 +268,12 @@ static int vga_vprintf_internal(const char *format, va_list args) {
                 char buffer[32];
                 itoa(value, buffer, 10);
                 int len = strlen(buffer);
+                /* 若指定宽度，在数字左侧填充空格或零 */
+                while (len < width) {
+                    vga_putc(zero_pad ? '0' : ' ');
+                    count++;
+                    width--;
+                }
                 vga_puts(buffer);
                 count += len;
                 break;
@@ -257,16 +284,22 @@ static int vga_vprintf_internal(const char *format, va_list args) {
                 char buffer[32];
                 itoa((int)value, buffer, 16);
                 if (*p == 'X') {
-                    // 转换为大写
+                    /* %X：将 itoa 生成的小写十六进制字母转为大写 */
                     char *ptr = buffer;
                     while (*ptr) {
                         if (*ptr >= 'a' && *ptr <= 'f') {
-                            *ptr = *ptr - 'a' + 'A';
+                            *ptr = (char)(*ptr - 'a' + 'A');
                         }
                         ptr++;
                     }
                 }
                 int len = strlen(buffer);
+                /* 十六进制宽度填充：根据 zero_pad 标志选择左侧补 '0' 或 ' ' */
+                while (len < width) {
+                    vga_putc(zero_pad ? '0' : ' ');
+                    count++;
+                    width--;
+                }
                 vga_puts(buffer);
                 count += len;
                 break;
@@ -276,8 +309,34 @@ static int vga_vprintf_internal(const char *format, va_list args) {
                 char buffer[32];
                 itoa((int)value, buffer, 10);
                 int len = strlen(buffer);
+                /* 无符号整数同样支持宽度填充 */
+                while (len < width) {
+                    vga_putc(zero_pad ? '0' : ' ');
+                    count++;
+                    width--;
+                }
                 vga_puts(buffer);
                 count += len;
+                break;
+            }
+            case 'p': {
+                void *ptr = va_arg(args, void *);
+                char buffer[32];
+                /* 指针地址输出规范：0x 前缀 + 十六进制数字 */
+                vga_putc('0');
+                vga_putc('x');
+                count += 2;
+                /* x86-32 下指针是 32 位，按 unsigned int 转十六进制 */
+                itoa((int)(unsigned int)ptr, buffer, 16);
+                int len = strlen(buffer);
+                /* 32 位系统下指针固定 8 位十六进制，不足左侧补零 */
+                while (len < 8) {
+                    vga_putc('0');
+                    count++;
+                    len++;
+                }
+                vga_puts(buffer);
+                count += strlen(buffer);
                 break;
             }
             case '%': {
@@ -294,7 +353,7 @@ static int vga_vprintf_internal(const char *format, va_list args) {
         }
         p++;
     }
-    
+
     return count;
 }
 
