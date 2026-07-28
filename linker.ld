@@ -30,4 +30,7 @@ SECTIONS
         *(.bss)
         *(COMMON)
     }
+
+    /* 导出内核结束地址，供物理内存管理器识别内核占用范围 */
+    PROVIDE(_kernel_end = .);
 }

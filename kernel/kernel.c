@@ -3,6 +3,7 @@
 #include "../include/gdt.h"
 #include "../include/interrupt.h"
 #include "../include/memory.h"
+#include "../include/pmm.h"
 
 /* kernel entry function, receives multiboot2 magic and info pointer */
 void kernel_main(unsigned int magic, unsigned int addr) {
@@ -27,6 +28,26 @@ void kernel_main(unsigned int magic, unsigned int addr) {
 
     /* print physical memory layout from multiboot2 info */
     memory_print_map(addr);
+
+    /* initialize physical memory manager based on the memory map */
+    pmm_init(addr);
+    kprintf("Physical memory manager initialized.\n");
+    pmm_dump_stats();
+
+    /* simple allocation test */
+    {
+        void *p1, *p2;
+
+        p1 = pmm_alloc_page();
+        p2 = pmm_alloc_page();
+        kprintf("pmm_alloc_page: p1=%p, p2=%p\n", p1, p2);
+        pmm_dump_stats();
+
+        pmm_free_page(p1);
+        pmm_dump_stats();
+        pmm_free_page(p2);
+        pmm_dump_stats();
+    }
 
     kprintf("Kernel entered protected mode!\n");
     kprintf("System ready.\n");
