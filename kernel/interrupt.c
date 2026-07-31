@@ -3,6 +3,7 @@
 #include "../include/port.h"
 #include "../include/vga.h"
 #include "../include/gdt.h"
+#include "../include/mmu.h"
 
 /* 定义中断处理函数指针数组，保存每个中断向量的C处理函数 */
 static void (*interrupt_handlers[IDT_ENTRIES])(struct pt_regs *);
@@ -80,6 +81,15 @@ static void register_interrupt_handler(uint8_t n, void *handler) {
 void interrupt_handler(struct pt_regs *regs) {
     /* 如果是异常，打印异常信息 */
     if (regs->int_no < 32) {
+        /*
+         * 页错误（vector 14）有专门的处理器，读取 CR2 并提供详细诊断
+         * 其他异常走通用处理路径
+         */
+        if (regs->int_no == 14) {
+            page_fault_handler(regs);
+            return;
+        }
+
         vga_printf("CPU Exception %d: ", regs->int_no);
         switch (regs->int_no) {
             case 0: vga_puts("Divide by zero"); break;

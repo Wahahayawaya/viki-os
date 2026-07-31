@@ -63,9 +63,15 @@ run_debug_qemu: iso
 	@echo "从ISO镜像在QEMU中调试..."
 	qemu-system-i386 -S -s -cdrom viki-os.iso -m 256
 
+# 用于串口调试  方便AI查看输出
+run_qemu_serial: iso
+	@echo "启动QEMU（serial模式）..."
+	qemu-system-i386 -cdrom viki-os.iso -m 256 -serial stdio -display none
+
+
 # 清理构建文件
 clean:
 	@echo "清理构建文件..."
 	rm -f $(OBJS) $(KERNEL_BIN) viki-os.iso iso/boot/$(KERNEL_BIN)
 
-.PHONY: all iso run_qemu clean
+.PHONY: all iso run_qemu run_debug_qemu run_qemu_serial clean

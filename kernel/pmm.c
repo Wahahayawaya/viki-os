@@ -8,9 +8,11 @@
  *   3. 初始化时：
  *      - 先把所有页帧标记为已占用（保守策略，避免误用未知内存）；
  *      - 然后遍历 Multiboot2 内存映射，把 type==AVAILABLE 且
- *        高于内核末尾（_kernel_end）的物理页标记为可用；
- *      - 内核自身镜像、栈、multiboot 信息等位于 _kernel_end 以下，
- *        始终保留，不会被分配。
+ *        高于内核物理末尾（_kernel_phys_end）的物理页标记为可用；
+ *      - 内核自身镜像（引导段+内核段）、位图、multiboot 信息等
+ *        位于 _kernel_phys_end 以下，始终保留，不会被分配。
+ *   4. 注意：高半核设计中 _kernel_end 是虚拟地址（0xC01xxxxx），
+ *      PMM 需要使用物理结束地址 _kernel_phys_end 来判断内核占用的物理范围。
  *   4. 分配页帧时扫描位图找到第一个 0 位并置 1；释放时清 0。
  *   5. 使用 pmm_next_free 维护下一个搜索起点，避免每次从 0 开始扫描，
  *      将平均复杂度从 O(N) 降到接近 O(1)。
@@ -45,8 +47,13 @@ static uint32_t kernel_end_frame = 0;
 /* 下一次分配时从该页帧开始扫描，减少重复遍历 */
 static uint32_t pmm_next_free = 0;
 
-/* 链接脚本中导出的内核结束符号，表示内核镜像及 .bss 的结束地址 */
-extern char _kernel_end[];
+/*
+ * 链接脚本导出的内核物理结束地址符号。
+ * 高半核设计中，_kernel_end 是虚拟地址（0xC01xxxxx），
+ * _kernel_phys_end 是所有内核段（.boot + .text + .rodata + .data + .bss）
+ * 在物理内存中的结束地址，PMM 据此保留内核占用的物理页。
+ */
+extern char _kernel_phys_end[];
 
 /* ---------- 位图辅助函数 ---------- */
 
@@ -130,9 +137,9 @@ void pmm_init(unsigned int multiboot_info_addr)
         pmm_bitmap[i] = 0xFF;
     }
 
-    /* 步骤 2：获取内核结束地址并计算页帧号（向上取整） */
-    /* _kernel_end 是链接脚本导出的符号，取地址后得到内核结束物理地址 */
-    kernel_end = (uint64_t)(uint32_t)(unsigned long)&_kernel_end[0];
+    /* 步骤 2：获取内核物理结束地址并计算页帧号（向上取整） */
+    /* _kernel_phys_end 是链接脚本导出的符号，取地址后得到内核物理结束地址 */
+    kernel_end = (uint64_t)(uint32_t)(unsigned long)&_kernel_phys_end[0];
     kernel_end_frame = (uint32_t)(kernel_end >> PMM_PAGE_SHIFT);
     if (kernel_end & (PMM_PAGE_SIZE - 1)) {
         kernel_end_frame++;

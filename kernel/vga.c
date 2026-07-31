@@ -84,6 +84,9 @@ void vga_scroll_up(void) {
 
 /* 输出单个字符 */
 void vga_putc(char c) {
+    /* 同步输出到串口，便于 QEMU 自动化验证 */
+    serial_putc(c);
+
     switch (c) {
         case '\n':
             cursor_x = 0;

@@ -9,4 +9,8 @@ typedef unsigned short uint16_t;
 void outb(uint16_t port, uint8_t val);
 uint8_t inb(uint16_t port);
 
+/* 串口（COM1）输出函数，用于调试和验证 */
+void serial_init(void);
+void serial_putc(char c);
+
 #endif /* PORT_H */

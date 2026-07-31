@@ -10,8 +10,12 @@ typedef char* va_list;
 #define va_arg(ap, type) (*(type*)((ap += sizeof(type)) - sizeof(type)))
 #define va_end(ap) ((void)0)
 
-/* 定义VGA文本缓冲区的起始地址 */
-#define VGA_BUFFER 0xb8000
+/*
+ * 定义VGA文本缓冲区的虚拟地址
+ * 物理地址 0xB8000 经过高半核映射后变为 KERNEL_VMA + 0xB8000 = 0xC00B8000
+ * 分页开启后，内核通过此虚拟地址访问 VGA 文本缓冲区
+ */
+#define VGA_BUFFER (0xC00B8000)
 
 /* 定义颜色属性 */
 #define VGA_COLOR_BLACK         0x00
