@@ -6,7 +6,7 @@ AS = gcc
 LD = ld
 
 # 编译选项
-CFLAGS = -m32 -ffreestanding -fno-stack-protector -nostdlib -Wall -Wextra -I./include -g
+CFLAGS = -m32 -ffreestanding -fno-stack-protector -fno-pic -nostdlib -Wall -Wextra -I./include -g
 ASFLAGS = -m32 -g
 LDFLAGS = -m elf_i386 -T linker.ld
 
