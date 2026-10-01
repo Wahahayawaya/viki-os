@@ -5,6 +5,7 @@
 #include "../include/gdt.h"
 #include "../include/mmu.h"
 #include "../include/pit.h"
+#include "../include/process.h"
 
 /* 定义中断处理函数指针数组，保存每个中断向量的C处理函数 */
 static void (*interrupt_handlers[IDT_ENTRIES])(struct pt_regs *);
@@ -124,6 +125,7 @@ void interrupt_handler(struct pt_regs *regs) {
         /* IRQ0：时钟中断，累加 tick */
         if (regs->int_no == IRQ0) {
             timer_handler();
+            schedule();
         }
     }
 }
@@ -221,7 +223,4 @@ void interrupt_init(void) {
     pic_init();
     /* 初始化 PIT，100Hz，产生 IRQ0 */
     pit_init(100);
-
-    /* 打开中断总开关，允许 IRQ0 进 CPU */
-    __asm__ volatile ("sti");
 }

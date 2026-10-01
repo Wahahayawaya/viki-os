@@ -21,6 +21,25 @@
  *   magic - multiboot2 引导魔数，用于验证引导方式正确性
  *   addr  - multiboot2 信息结构体地址（物理地址，identity 映射保证可访问）
  */
+
+/* 测试线程：时钟中断每 10ms 抢占换人，屏幕看到交替字符 */
+static void thread_a(void) {
+    while (1) {
+        vga_putc('A');
+    }
+}
+
+static void thread_b(void) {
+    while (1) {
+        vga_putc('B');
+    }
+}
+
+static void idle(void) {
+    while (1) {
+        vga_putc('.');
+    }
+}
 void kernel_main(unsigned int magic, unsigned int addr) {
     /* 检查是否由 multiboot2 兼容的引导程序加载 */
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
@@ -76,22 +95,15 @@ void kernel_main(unsigned int magic, unsigned int addr) {
 
     kprintf("Kernel entered protected mode with paging!\n");
     kprintf("Running in high-half kernel at 0xC0100000+\n");
-    /* PCB 验证：创建两个内核线程测试入队 */
+    /* 创建三个内核线程，时钟中断负责轮转调度 */
     process_init();
-    process_create("test_a", 0);
-    process_create("test_b", 0);
-    kprintf("System ready.\n");
-    /* PIT 验证：观察 tick 累加 */
-    {
-        uint64_t last_tick = 0;
-        for (volatile int i = 0; i < 30000000; i++) {
-            uint64_t t = timer_get_ticks();
-            if (t != last_tick) {
-                last_tick = t;
-                kprintf("tick=%u\n", (uint32_t)t);
-            }
-        }
-    }
+    process_create("idle", idle);
+    process_create("a", thread_a);
+    process_create("b", thread_b);
+    kprintf("System ready. Tasks scheduled by IRQ0.\n");
+
+    /* 最后一刻才开中断，避免前面的输出被 IRQ0 撕裂 */
+    __asm__ volatile ("sti");
 
     while (1) { __asm__ volatile ("hlt"); }
 }

@@ -7,6 +7,7 @@
  *  3. EXC_ERR_MACRO - CPU异常，CPU已经自动push错误码，无需额外操作
  */
 
+.extern current_process
 .global interrupt_handler
 
 /* 保存所有段寄存器和通用寄存器，栈指针指向pt_regs结构
@@ -20,18 +21,32 @@
     pushl %gs             /* 最后压 gs，使 gs 位于最低地址，即 pt_regs 起始处 */
     pushl %esp            /* 将指向 gs 的指针作为 C 函数参数压栈 */
     cli                   /* 关中断 */
+    /* 保存当前进程的 esp（偏移 8，见 process.h） */
+    movl current_process, %ecx
+    testl %ecx, %ecx
+    jz 1f
+    movl %esp, 8(%ecx)
+1:
 .endm
 
+//为防止作者先修产生的冲突Bug，我以后会先看看作者干了什么再进行代码功能或者其他的添加
+
 .macro RESTORE_ALL
-    addl $4, %esp         /* 跳过参数 pt_regs*（返回地址已由 ret 弹出） */
+    /* 从 current_process 恢复 esp，切到目标进程的栈 */
+    movl current_process, %ecx
+    testl %ecx, %ecx
+    jz 1f
+    movl 8(%ecx), %esp
+1:
+    addl $4, %esp
     popl %gs
     popl %fs
     popl %es
-    popl %ds              /* 恢复段寄存器 */
-    popa                  /* 恢复通用寄存器 */
-    addl $8, %esp         /* 跳过 int_no 和 err_code */
-    sti                   /* 开中断 */
-    iret                  /* 中断返回，CPU 自动弹出 eip/cs/eflags/useresp/ss */
+    popl %ds
+    popa
+    addl $8, %esp
+    sti
+    iret
 .endm
 
 /*

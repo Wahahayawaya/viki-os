@@ -31,19 +31,25 @@ jobs:
 
       - name: Boot test in QEMU
         run: |
-          timeout 20 qemu-system-i386 -cdrom viki-os.iso -m 256 \
-            -display none -serial stdio > serial.log 2>&1 || true
-          echo "----- serial.log -----"
-          cat serial.log
-          echo "----------------------"
-          grep -q "System ready." serial.log
-          grep -q "process_create: pid=1 name=test_a" serial.log
-          grep -q "process_create: pid=2 name=test_b" serial.log
-          grep -q "tick=" serial.log
+          timeout -s KILL 8 qemu-system-i386 -cdrom viki-os.iso -m 256 \
+            -display none -serial file:serial.raw || true
+          echo "raw size: $(wc -c < serial.raw) bytes"
+          head -c 200000 serial.raw > serial.log
+          echo "truncated: $(wc -c < serial.log) bytes"
+          echo "----- first 4KB -----"
+          head -c 4000 serial.log
+          echo ""
+          echo "---------------------"
+          grep -q "process_create: pid=1 name=idle" serial.log
+          grep -q "process_create: pid=2 name=a" serial.log
+          test $(grep -o "A" serial.log | wc -l) -gt 10
+          test $(grep -o "B" serial.log | wc -l) -gt 10
 
       - name: Upload serial log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: serial-log
-          path: serial.log
+          path: |
+            serial.log
+            serial.raw

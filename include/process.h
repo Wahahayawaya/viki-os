@@ -40,5 +40,6 @@ void process_init(void);
 
 /* 创建一个内核线程，entry 是新线程入口，加入就绪队列 */
 process_t *process_create(const char *name, void (*entry)(void));
+void schedule(void);
 
 #endif

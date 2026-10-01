@@ -71,12 +71,31 @@ process_t *process_create(const char *name, void (*entry)(void)) {
     if (!stack) return 0;
     uint32_t *sp = (uint32_t *)((uint32_t)stack + 4096);
 
-    /* 手工压一个简化的 ret 帧，供将来的 switch_to 使用 */
-    *(--sp) = (uint32_t)entry;  /* ret 地址 */
-    *(--sp) = 0;                /* ebp */
-    *(--sp) = 0;                /* ebx */
-    *(--sp) = 0;                /* esi */
-    *(--sp) = 0;                /* edi */
+    /* 构造中断返回栈，与 RESTORE_ALL 的 pop 顺序一致：
+     *   [pt_regs_ptr]                    ← addl $4 跳过
+     *   edi,esi,ebp,esp,ebx,edx,ecx,eax  ← popa
+     *   gs,fs,es,ds                      ← popl
+     *   int_no,err_code                  ← addl $8 跳过
+     *   eip,cs,eflags                    ← iret（ring0，3 字段）
+     */
+    *(--sp) = 0x202;              /* eflags: IF=1 */
+    *(--sp) = 0x08;               /* cs: 内核代码段 */
+    *(--sp) = (uint32_t)entry;    /* eip */
+    *(--sp) = 0;                  /* err_code */
+    *(--sp) = 0;                  /* int_no */
+    *(--sp) = 0x10;               /* ds */
+    *(--sp) = 0x10;               /* es */
+    *(--sp) = 0x10;               /* fs */
+    *(--sp) = 0x10;               /* gs */
+    *(--sp) = 0;                  /* eax */
+    *(--sp) = 0;                  /* ecx */
+    *(--sp) = 0;                  /* edx */
+    *(--sp) = 0;                  /* ebx */
+    *(--sp) = 0;                  /* esp (pusha 槽位) */
+    *(--sp) = 0;                  /* ebp */
+    *(--sp) = 0;                  /* esi */
+    *(--sp) = 0;                  /* edi */
+    *(--sp) = 0;                  /* pt_regs_ptr 占位 */
 
     proc->esp = (uint32_t)sp;
 
@@ -93,4 +112,39 @@ process_t *process_create(const char *name, void (*entry)(void)) {
                proc->pid, proc->name, proc->esp);
 
     return proc;
+}
+
+/*
+ * schedule - 轮转调度
+ *
+ * 设计思路：中断返回路径（isr.S 的 RESTORE_ALL）会自动从
+ * current_process->esp 恢复栈，所以这里只负责"选下一个"，不切栈。
+ *
+ * 调用时机：IRQ0 时钟中断的 EOI 之后，每 10ms 一次。
+ */
+void schedule(void) {
+    if (!ready_queue_head) return;
+
+    /* 把当前进程放回队尾（如果还在运行态） */
+    if (current_process && current_process->state == TASK_RUNNING) {
+        current_process->state = TASK_READY;
+        current_process->next = 0;
+        if (ready_queue_tail) {
+            ready_queue_tail->next = current_process;
+        } else {
+            ready_queue_head = current_process;
+        }
+        ready_queue_tail = current_process;
+    }
+
+    /* 取队首作为下一个 */
+    process_t *next = ready_queue_head;
+    if (!next) return;
+
+    ready_queue_head = next->next;
+    if (!ready_queue_head) ready_queue_tail = 0;
+
+    next->state = TASK_RUNNING;
+    next->next = 0;
+    current_process = next;
 }
